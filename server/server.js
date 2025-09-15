@@ -1,34 +1,17 @@
 require("dotenv").config();
 const express = require("express");
-// const ntlm = require("express-ntlm");
 const cors = require("cors");
 const sql = require("mssql");
 const dbConfig = require("./dbConfig");
 const VanguardSeasonSummaryRoutes = require("./routes/VanguardSeasonSummaryRoutes");
 const InvoicingDetailRoutes = require("./routes/InvoicingDetailRoutes");
 const DataSourcesRoutes = require("./routes/DataSourcesRoutes");
+const AuthRoutes = require("./routes/AuthRoutes");
+const RlsDmRoutes = require("./routes/RlsDmRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// app.use(
-//   ntlm({
-//     debug: function () {
-//       // console.log.apply(null, arguments);
-//     },
-//     domain: "YOURDOMAIN",
-//     domaincontroller: "ldap://your-dc.yourdomain.com",
-//   })
-// );
-
-// // This route will auto-authenticate with Windows credentials
-// app.get("/api/login", function (req, res) {
-//   res.json({
-//     user: req.ntlm.UserName,
-//     domain: req.ntlm.DomainName,
-//     workstation: req.ntlm.Workstation,
-//   });
-// });
 
 // Middleware
 app.use(cors());
@@ -47,6 +30,8 @@ sql.connect(dbConfig)
 app.use("/api/allSeasons", VanguardSeasonSummaryRoutes);
 app.use("/api/invoicing", InvoicingDetailRoutes);
 app.use("/api/dataSources", DataSourcesRoutes);
+app.use("/api/auth", AuthRoutes);
+app.use("/api/rlsDm", RlsDmRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

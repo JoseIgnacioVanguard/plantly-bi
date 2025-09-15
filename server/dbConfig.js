@@ -1,8 +1,8 @@
 // server/config/db.js
 module.exports = {
   user: 'dw_etl',            
-  password: 'Vanguard2024!',     
-  server: '10.13.10.90',
+  password: 'Vanguard2025!',     
+  server: '10.13.10.31',
   port: 49841,
   database: 'DA_DataMart',
   options: {

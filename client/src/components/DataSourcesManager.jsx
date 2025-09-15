@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Modal from "react-modal";
+import { jwtDecode } from "jwt-decode";
+
+// required for accessibility
+Modal.setAppElement("#root");
 
 const DataSourcesManager = () => {
   const [dataSources, setDataSources] = useState([]);
   const [newDataSource, setNewDataSource] = useState({
-    source_id: "",
     source_system: "",
     source_location: "",
     host_api_url: "",
@@ -15,22 +18,48 @@ const DataSourcesManager = () => {
     source_status: "",
     valid_from: "",
     valid_to: "",
-    source_description: ""
+    source_description: "",
   });
   const [editingDataSource, setEditingDataSource] = useState(null);
   const [error, setError] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(""); // ✅ new
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
+  // 🔹 modal handlers
+  const openAddModal = () => setIsAddModalOpen(true);
+  const closeAddModal = () => setIsAddModalOpen(false);
+  const closeEditModal = () => setEditingDataSource(null);
+
+  // 🔹 Axios interceptor to add token to headers
+  axios.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 
   useEffect(() => {
-    fetchDataSources();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/signin"; // redirect if not signed in
+    } else {
+      fetchDataSources();
+    }
   }, []);
+
+  const token = localStorage.getItem("token");
+  let role = null;
+  if (token) {
+    const decoded = jwtDecode(token);
+    role = decoded.role;
+  }
 
   const fetchDataSources = async () => {
     try {
-      const response = await axios.get("http://10.13.10.12:5001/api/dataSources");
+      const response = await axios.get(
+        "http://10.13.10.12:5001/api/dataSources"
+      );
       setDataSources(response.data);
     } catch (error) {
       console.error("Error fetching data sources:", error);
@@ -50,9 +79,11 @@ const DataSourcesManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://10.13.10.12:5001/api/dataSources", newDataSource);
+      await axios.post(
+        "http://10.13.10.12:5001/api/dataSources",
+        newDataSource
+      );
       setNewDataSource({
-        source_id: "",
         source_system: "",
         source_location: "",
         host_api_url: "",
@@ -66,17 +97,15 @@ const DataSourcesManager = () => {
       });
       fetchDataSources();
       setError("");
-      closeModal();
+      setSuccessMessage("✅ Data Source created successfully!"); // ✅ success
+      closeAddModal();
+      setTimeout(() => setSuccessMessage(""), 3000); // auto-hide
     } catch (error) {
       console.error("Error creating data source:", error);
       const errorMessage =
         error.response?.data?.message || "Failed to create data source";
       setError(errorMessage);
     }
-  };
-
-  const handleEdit = (dataSource) => {
-    setEditingDataSource(dataSource);
   };
 
   const handleUpdate = async (e) => {
@@ -86,165 +115,53 @@ const DataSourcesManager = () => {
         `http://10.13.10.12:5001/api/dataSources/${editingDataSource.source_id}`,
         editingDataSource
       );
-      setEditingDataSource(null);
+      closeEditModal();
       fetchDataSources();
       setError("");
+      setSuccessMessage("✅ Data Source updated successfully!"); // ✅ success
+      setTimeout(() => setSuccessMessage(""), 3000); // auto-hide
     } catch (error) {
       console.error("Error updating data source:", error);
       setError("Failed to update data source");
     }
   };
 
-  const AddDataSourceModal = () => (
-    <Modal
-      isOpen={isModalOpen}
-      onRequestClose={closeModal}
-      style={{
-        content: {
-          width: "400px",
-          height: "500px",
-          margin: "auto",
-          padding: "20px",
-        },
-      }}
-    >
-      <h2>Add New Data Source</h2>
-      <br />
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <input
-            type="number"
-            name="source_id"
-            value={newDataSource.source_id}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Data Source ID"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_system"
-            value={newDataSource.source_system}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source System"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_location"
-            value={newDataSource.source_location}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Location"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="host_api_url"
-            value={newDataSource.host_api_url}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Host/API URL"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_type"
-            value={newDataSource.source_type}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Type"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="system_type"
-            value={newDataSource.system_type}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="System Type"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_name"
-            value={newDataSource.source_name}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Name"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_status"
-            value={newDataSource.source_status}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Status"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="date"
-            name="valid_from"
-            value={newDataSource.valid_from}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Valid From"
-            className="form-input"
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="date"
-            name="valid_to"
-            value={newDataSource.valid_to}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Valid To"
-            className="form-input"
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_description"
-            value={newDataSource.source_description}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Description"
-            className="form-input"
-            required
-          />
-        </div>
-        <button type="submit" className="btn">
-          Add Data Source
-        </button>
-      </form>
-    </Modal>
-  );
+  // 🔹 Reusable modal style
+  const modalStyle = {
+    overlay: {
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      zIndex: 1000,
+    },
+    content: {
+      width: "400px",
+      height: "500px",
+      margin: "auto",
+      padding: "20px",
+      borderRadius: "10px",
+      zIndex: 1001,
+    },
+  };
 
   return (
     <div className="data-source-manager">
-      <h2>Manage Data Sources</h2>
+      <div className="list-header">
+        <h2>Current Data Sources</h2>
+        {role === "admin" && (
+          <button onClick={openAddModal} className="btn">
+            Add New Data Source
+          </button>
+        )}
+      </div>
+      {/* ✅ Success message */}
+      {successMessage && (
+        <div className="success-message">{successMessage}</div>
+      )}
+
+      {/* ❌ Error message */}
+      {error && <div className="error-message">{error}</div>}
 
       {/* Data Source List */}
       <div className="data-source-list">
-        <h3>Current Data Sources</h3>
-        {error && <div className="error-message">{error}</div>}
         <div className="table-container">
           <table>
             <thead>
@@ -264,7 +181,7 @@ const DataSourcesManager = () => {
             </thead>
             <tbody>
               {dataSources.map((dataSource) => (
-                <tr key={dataSource.source_id} >
+                <tr key={dataSource.source_id}>
                   <td>{dataSource.source_id}</td>
                   <td>{dataSource.source_system}</td>
                   <td>{dataSource.source_location}</td>
@@ -277,7 +194,7 @@ const DataSourcesManager = () => {
                   <td>{dataSource.valid_to}</td>
                   <td>
                     <button
-                      onClick={() => handleEdit(dataSource)}
+                      onClick={() => setEditingDataSource(dataSource)}
                       className="btn btn-small btn-edit"
                     >
                       Edit
@@ -290,163 +207,89 @@ const DataSourcesManager = () => {
         </div>
       </div>
 
-      {/*     
-      kpi_id: "",
-    name: "",
-    description: "",
-    category: "",
-    target_value: "",
-    actual_value: "",
-    unit: "",
-    frequency: "",
-    status: "",
-    department_id: "",
-    project_id: "",
+      {/* ➕ Add Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onRequestClose={closeAddModal}
+        style={modalStyle}
+      >
+        <h2>Add New Data Source</h2>
+        <form onSubmit={handleSubmit}>
+          {Object.keys(newDataSource).map((field) => (
+            <div className="form-group" key={field}>
+              <input
+                type={
+                  field.includes("date")
+                    ? "date"
+                    : field === "source_id"
+                    ? "number"
+                    : "text"
+                }
+                name={field}
+                value={newDataSource[field]}
+                onChange={(e) => handleInputChange(e, false)}
+                placeholder={field.replace(/_/g, " ")}
+                className="form-input"
+                required={field !== "valid_from" && field !== "valid_to"}
+              />
+            </div>
+          ))}
+          <button type="submit" className="btn">
+            Add Data Source
+          </button>
+        </form>
+      </Modal>
 
-      {/* Edit Data Source Modal */}
-      {editingDataSource && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Edit Data Source</h3>
-            <form onSubmit={handleUpdate}>
-              <div className="form-group">
+      {/* ✏️ Edit Modal */}
+      <Modal
+        isOpen={!!editingDataSource}
+        onRequestClose={closeEditModal}
+        style={modalStyle}
+      >
+        <h3>Edit Data Source</h3>
+        {editingDataSource && (
+          <form onSubmit={handleUpdate}>
+            {Object.keys(editingDataSource).map((field) => (
+              <div className="form-group" key={field}>
                 <input
-                  type="text"
-                  name="source_id"
-                  value={editingDataSource.source_id}
+                  type={
+                    field.includes("date")
+                      ? "date"
+                      : field === "source_id"
+                      ? "number"
+                      : "text"
+                  }
+                  name={field}
+                  value={editingDataSource[field]}
+                  onChange={(e) => handleInputChange(e, true)}
+                  placeholder={field.replace(/_/g, " ")}
                   className="form-input"
-                  disabled
+                  disabled={field === "source_id"}
+                  required={
+                    field !== "valid_from" &&
+                    field !== "valid_to" &&
+                    field !== "source_description"
+                  }
                 />
               </div>
-              <div className="form-group">
-          <input
-            type="text"
-            name="source_system"
-            value={editingDataSource.source_system}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source System"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_location"
-            value={editingDataSource.source_location}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Location"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="host_api_url"
-            value={editingDataSource.host_api_url}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Host/API URL"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_type"
-            value={editingDataSource.source_type}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Type"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="system_type"
-            value={editingDataSource.system_type}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="System Type"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_name"
-            value={editingDataSource.source_name}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Name"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_status"
-            value={editingDataSource.source_status}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Status"
-            className="form-input"
-            required
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="date"
-            name="valid_from"
-            value={editingDataSource.valid_from}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Valid From"
-            className="form-input"
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="date"
-            name="valid_to"
-            value={editingDataSource.valid_to}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Valid To"
-            className="form-input"
-          />
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            name="source_description"
-            value={editingDataSource.source_description}
-            onChange={(e) => handleInputChange(e, false)}
-            placeholder="Source Description"
-            className="form-input"
-            required
-          />
-        </div>
-              <div className="modal-actions">
-                <button type="submit" className="btn">
-                  Save Changes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingDataSource(null)}
-                  className="btn btn-cancel"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            ))}
+            <div className="modal-actions">
+              <button type="submit" className="btn">
+                Save Changes
+              </button>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="btn btn-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       <br />
-      <button onClick={openModal} className="btn">
-        Add New Data Source
-      </button>
-      <AddDataSourceModal />
     </div>
   );
 };
